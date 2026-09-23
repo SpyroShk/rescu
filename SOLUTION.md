@@ -11,7 +11,9 @@ query. Team reproduces this most attempts. Users report "search is drunk".
 
 ### RES-101 Solution
 
-**Root cause:** Continuous spamming of API calls on each letter/ multiple request at once.
+**Root cause:**
+
+Continuous spamming of API calls on each letter/ multiple request at once.
 
 **Fix:**
 
@@ -30,10 +32,32 @@ navigate back. Within a couple of seconds the app crashes in debug builds with
 
 ### RES-102 Solution
 
-**Root cause:** Timer.periodic in PickupCountdown is created without canceling it, so it continues firing after PickupCountdown is removed when popping out of OrdersScreen and calls setState on a disposed state.
+**Root cause:**
+
+Timer.periodic in PickupCountdown is created without canceling it, so it continues firing after PickupCountdown is removed when popping out of OrdersScreen and calls setState on a disposed state.
 
 **Fix:**
 
 1. The periodic timer is now stored, canceled in dispose(), and guarded with mounted. If the timer wasn't cancelled it would continue existing even after popping out of the page and give error.
 
 The fix took few min to find that PickupCountdown was using periodic Timer and it wasnt disposed causing the bug and was solved under few minutes. For the use of AI, Copilot suggested to check if it was mounted or not using if statement while initializing.
+
+### RES-103 · Requests pile up the longer you browse
+
+After opening several deal pages, every tap on "Add to bag" triggers a burst
+of `GET /deals/:id` requests — one for _each deal viewed earlier in the
+session_, even for screens that were closed long ago. The app gets slower
+and chattier the longer the session. Watch the console logs while browsing
+to see it (every simulated request is logged).
+
+### RES-103 Solution
+
+**Root cause:**
+
+The cause is in onInit of DealDetailsController where each page registers an ever(...) worker on the app-wide cart observable, but the returned Worker is discarded, so closing the page never unregisters that listener.
+
+**Fix:**
+
+1. I disposed the worker in onClose in DealDetailsController. This removes old controllers while preserving the stock refresh for the active page. Each controller now stores its cart listener and disposes it in onClose(), preventing closed deal pages from reacting to future “Add to bag” events.
+
+The fix took me around 30 to 40 minutes as I have never worked with workers before and took me some time to learn what ever, everAll, once and debounce did. The used worker, ever() wasnt disposed causing the bug and was solved under few minutes after found. Researched about the workers rather the use AI to solve this issue.
