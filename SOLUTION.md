@@ -61,3 +61,26 @@ The cause is in onInit of DealDetailsController where each page registers an eve
 1. I disposed the worker in onClose in DealDetailsController. This removes old controllers while preserving the stock refresh for the active page. Each controller now stores its cart listener and disposes it in onClose(), preventing closed deal pages from reacting to future “Add to bag” events.
 
 The fix took me around 30 to 40 minutes as I have never worked with workers before and took me some time to learn what ever, everAll, once and debounce did. The used worker, ever() wasnt disposed causing the bug and was solved under few minutes after found. Researched about the workers rather the use AI to solve this issue.
+
+
+### RES-104 · Duplicate deals in the home feed
+
+Scroll to the bottom of the home feed so the next page starts loading, then
+quickly pull down to refresh while it is still loading. Intermittently the
+feed ends up with duplicated cards, or more items than the catalog contains.
+
+### RES-104 Solution
+
+**Root cause:**
+
+I couldn't replicate the problem again by myself, but looking and going through the code, during refresh, an earlier loadMore() request could finish afterward and append its results to the newly refreshed list, causing duplicates or excess items. While refreshDeals() can modify the list during that request, loadMore() modifies the shared pagination state before its request is finished. 
+
+**Fix:**
+
+The fix will discarding ongoing pagination results when a refresh starts, prevent a new load during refresh, and update _page only for the response that still belongs to the current feed generation.
+1. Discarding outdated pagination responses at the start of the refresh.
+2. Blocking loadMore() while refresh is active.
+3. Committing _page only after the matching request succeeds.
+4. Keeping pagination state consistent after failures.
+
+The fix took me longer than I expected as I couldn't recreate the issue and took me some time to go through the code. After understanding the code, it took me around an hour to fix everything. I used copilot to understand the code to solve this issue.
