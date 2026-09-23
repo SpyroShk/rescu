@@ -1,10 +1,10 @@
 import 'package:get/get.dart';
+import 'package:rescu/util/log_service.dart';
 
 import '../../model/deal_model.dart';
 import '../../repository/deal_repo.dart';
 import '../../service/analytics_service.dart';
 import '../../service/cart_service.dart';
-import '../../util/log_service.dart';
 
 class DealDetailsController extends GetxController {
   final DealRepo dealRepo;
@@ -18,6 +18,7 @@ class DealDetailsController extends GetxController {
   });
 
   late final DealModel deal;
+  Worker? _cartChangeWorker;
 
   final _quantityLeft = RxnInt();
   int? get quantityLeft => _quantityLeft.value;
@@ -33,7 +34,15 @@ class DealDetailsController extends GetxController {
     });
     // Whenever the cart changes, re-check this deal's remaining stock so the
     // details screen never shows stale availability.
-    ever(cartService.itemCount, (_) => _recheckAvailability());
+    _cartChangeWorker = ever(cartService.itemCount, (_) {
+      return _recheckAvailability();
+    });
+  }
+
+  @override
+  void onClose() {
+    _cartChangeWorker?.dispose();
+    super.onClose();
   }
 
   Future<void> _recheckAvailability() async {
