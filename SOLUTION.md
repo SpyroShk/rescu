@@ -62,7 +62,6 @@ The cause is in onInit of DealDetailsController where each page registers an eve
 
 The fix took me around 30 to 40 minutes as I have never worked with workers before and took me some time to learn what ever, everAll, once and debounce did. The used worker, ever() wasnt disposed causing the bug and was solved under few minutes after found. Researched about the workers rather the use AI to solve this issue.
 
-
 ### RES-104 · Duplicate deals in the home feed
 
 Scroll to the bottom of the home feed so the next page starts loading, then
@@ -73,14 +72,50 @@ feed ends up with duplicated cards, or more items than the catalog contains.
 
 **Root cause:**
 
-I couldn't replicate the problem again by myself, but looking and going through the code, during refresh, an earlier loadMore() request could finish afterward and append its results to the newly refreshed list, causing duplicates or excess items. While refreshDeals() can modify the list during that request, loadMore() modifies the shared pagination state before its request is finished. 
+I couldn't replicate the problem again by myself, but looking and going through the code, during refresh, an earlier loadMore() request could finish afterward and append its results to the newly refreshed list, causing duplicates or excess items. While refreshDeals() can modify the list during that request, loadMore() modifies the shared pagination state before its request is finished.
 
 **Fix:**
 
-The fix will discarding ongoing pagination results when a refresh starts, prevent a new load during refresh, and update _page only for the response that still belongs to the current feed generation.
+The fix will discarding ongoing pagination results when a refresh starts, prevent a new load during refresh, and update \_page only for the response that still belongs to the current feed generation.
+
 1. Discarding outdated pagination responses at the start of the refresh.
 2. Blocking loadMore() while refresh is active.
-3. Committing _page only after the matching request succeeds.
+3. Committing \_page only after the matching request succeeds.
 4. Keeping pagination state consistent after failures.
 
 The fix took me longer than I expected as I couldn't recreate the issue and took me some time to go through the code. After understanding the code, it took me around an hour to fix everything. I used copilot to understand the code to solve this issue.
+
+### RES-105 · Home feed is janky and memory keeps climbing
+
+On mid-range Android devices the home feed drops frames noticeably while
+scrolling, and memory grows the further you scroll until the OS kills the app.
+DevTools shows the entire feed rebuilding continuously during scroll, and the
+image cache ballooning. There is more than one contributing cause — we expect
+you to find and explain them, with before/after evidence from DevTools
+(screenshots or numbers in `solutions.md`).
+
+### RES-105 Solution
+
+**Root cause:**
+
+1. HomeScreen wraps the entire Scaffold in Obx while reading scrollOffset, so every scroll tick rebuilds the full feed.
+2. The feed uses ListView(children: [...visibleDeals.map(...)]), which eagerly creates the whole catalog instead of lazily building visible cards.
+3. The image widget also gives CachedNetworkImage no decode size bounds, so large source images can occupy much more memory than their 160 px display size.
+
+**Fix:**
+
+1. scrollOffset previously wrapped the entire Scaffold in Obx, rebuilding the complete feed on every scroll tick. scrollOffset is now replaced by showScrollToTop for FAB and isScrolled for appbar. It now only rebuilds the appbar and FAB when necessary instead of in every scroll as Obx is only used where necessary.
+2. The feed used ListView(children: [...]), eagerly creating every deal card. It now uses ListView.builder, creating only nearby cards. The DealCard is now wrapped with RepaintBoundary to isolates each card's repaints so scrolling one doesn't force repaints of other cards.
+3. Images now use memCacheHeight, preventing oversized source images from consuming excessive decoded-image memory.
+
+**Before**
+![Initial Graph](assets/md_images/before.png)
+![Initial Rebuild Stats](assets/md_images/before1.png)
+
+**After**
+![Final Graph](assets/md_images/after.png)
+![Final Rebuild Stats](assets/md_images/after1.png)
+
+Both before and after images were captured on a single swipe in the homepage till the pagination and sorted by Overall rebuilds. We can see that there is significant improvement on performance with FPS increase after the fix resulting in a smoother scroll in homepage.
+
+The fix took me 1-2 hours. I used Claude to get info on widget rebuilds when using Obx and got suggested to use RepaintBoundary to isolates each card's repaints so scrolling one doesn't force repaints of other cards. Other fixes were done by myself but got auto complete from copiliot at some places.
