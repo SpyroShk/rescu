@@ -142,3 +142,37 @@ integrate with.
 2. Compared start date and current date excluding time to make sure isToday is valid.
 
 I fixed this issue within an hour. It took few minutes to find all the incomming datetime and change them to local as well. didnt need to use AI for this one, just used copilot to check if there were more date issues.
+
+
+### RES-107 · Deep link opens to a crash
+
+Marketing sends push notifications that deep-link to deals, e.g.
+`rescu://open/deal?id=42&source=push`. Opening such a link crashes with
+`type 'Null' is not a subtype of type 'DealModel'`. Opening the same deal
+from the home feed works fine.
+
+Repro options:
+
+- In-app: Home → overflow menu (⋮) → **Simulate deep link…**
+- Android: `adb shell am start -a android.intent.action.VIEW -d "rescu://open/deal?id=42&source=push" dev.rescu.rescu`
+
+Requirement: the link must land the user on a fully working deal page (deal
+42 exists in the catalog). Showing an error/fallback screen instead is not an
+acceptable resolution for this ticket.
+
+### RES-107 Solution
+
+**Root cause:**
+
+Home navigation passed a DealModel through arguments, but deep links only provided the id as 42. The controller then cast Get.arguments directly to DealModel, causing the null type error.
+
+**Fix:**
+
+1. Read the deal ID from Get.parameters.
+2. Fetch the deal with DealRepo.fetchById in _loadDeal() in DealDetailsController.
+3. Show a loading state while fetching in the DealDetailsScreen.
+4. Show an error state if the deal ID is invalid or unavailable.
+
+I fixed this issue an about an hour. It took some time to check the passed parameters and the missing ones. 
+
+Used Copilot to clean the code and to check if there were more issues regarding deeplinking.

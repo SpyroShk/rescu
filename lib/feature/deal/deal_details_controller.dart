@@ -17,7 +17,8 @@ class DealDetailsController extends GetxController {
     required this.analytics,
   });
 
-  late final DealModel deal;
+  final deal = Rxn<DealModel>();
+  final errorMessage = RxnString();
   Worker? _cartChangeWorker;
 
   final _quantityLeft = RxnInt();
@@ -26,10 +27,21 @@ class DealDetailsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    deal = Get.arguments as DealModel;
-    _quantityLeft.value = deal.quantityLeft;
+    final argument = Get.arguments;
+    if (argument is DealModel) {
+      _setDeal(argument);
+    } else {
+      final id = int.tryParse(Get.parameters['id'] ?? '');
+      if (id == null) {
+        errorMessage.value = 'Deal not found';
+      } else {
+        _loadDeal(id);
+      }
+    }
     analytics.logEvent('deal_details_view', {
-      'deal_id': deal.id,
+      'deal_id': (argument is DealModel)
+          ? argument.id
+          : Get.parameters['id'] ?? 'unknown',
       'source': Get.parameters['source'] ?? 'unknown',
     });
     // Whenever the cart changes, re-check this deal's remaining stock so the
@@ -46,16 +58,34 @@ class DealDetailsController extends GetxController {
   }
 
   Future<void> _recheckAvailability() async {
-    LogService.log('re-checking availability for deal ${deal.id}');
-    final fresh = await dealRepo.fetchById(deal.id);
+    final currentDeal = deal.value;
+    if (currentDeal == null) return;
+    LogService.log('re-checking availability for deal ${currentDeal.id}');
+    final fresh = await dealRepo.fetchById(currentDeal.id);
     _quantityLeft.value = fresh.quantityLeft;
   }
 
+  Future<void> _loadDeal(int id) async {
+    try {
+      _setDeal(await dealRepo.fetchById(id));
+    } catch (e) {
+      LogService.error('load deal failed', e);
+      errorMessage.value = 'Unable to load deal';
+    }
+  }
+
+  void _setDeal(DealModel value) {
+    deal.value = value;
+    _quantityLeft.value = value.quantityLeft;
+  }
+
   void addToCart() {
-    cartService.add(deal);
+    final currentDeal = deal.value;
+    if (currentDeal == null) return;
+    cartService.add(currentDeal);
     Get.snackbar(
       'Added to bag',
-      '${deal.name} — pick up ${deal.pickupWindow.label}',
+      '${currentDeal.name} — pick up ${currentDeal.pickupWindow.label}',
       snackPosition: SnackPosition.BOTTOM,
       duration: const Duration(seconds: 2),
     );
