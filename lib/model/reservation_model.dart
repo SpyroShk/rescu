@@ -18,7 +18,7 @@ class ReservationModel {
       id: json['id'] as String? ?? '',
       dealId: json['dealId'] as int? ?? 0,
       quantity: json['quantity'] as int? ?? 1,
-      expiresAt: DateTime.parse(json['expiresAt'] as String? ?? ''),
+      expiresAt: DateTime.parse(json['expiresAt'] as String? ?? '').toLocal(),
     );
   }
 
