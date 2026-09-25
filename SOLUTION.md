@@ -119,3 +119,26 @@ you to find and explain them, with before/after evidence from DevTools
 Both before and after images were captured on a single swipe in the homepage till the pagination and sorted by Overall rebuilds. We can see that there is significant improvement on performance with FPS increase after the fix resulting in a smoother scroll in homepage.
 
 The fix took me 1-2 hours. I used Claude to get info on widget rebuilds when using Obx and got suggested to use RepaintBoundary to isolates each card's repaints so scrolling one doesn't force repaints of other cards. Other fixes were done by myself but got auto complete from copiliot at some places.
+
+### RES-106 · Wrong pickup times; "Pickup today" filter misses deals
+
+Multiple user complaints: a bakery that opens **06:00–09:30** shows
+"Pick up 23:00 – 02:30" on its cards, and several stores with pickup slots
+today never appear when the **Pickup today** filter is on. Some users showed
+up at closed stores. The backend team insists their data is correct and
+points out the API sends standard ISO-8601 UTC instants, like every API we
+integrate with.
+
+### RES-106 Solution
+
+**Root cause:**
+
+1. I tried to find the bakery open time to fix the issue for pickup time but couldnt find it. It is given that the backend send the data in standard UTC format but the datetime in PickupWindowModel is never converted to local time which may have been causing the issue.
+2. Also start datetime was compared with current datetime in isToday and that will filter out based on the time as well in PickupWindowModel.
+
+**Fix:**
+
+1. Converted the UTC time to local time in PickupWindowModel for start and end date, so that the timing for pickup is accurate in the app. Also since all the datetime is sent in UTC format from the backend, all the incomming datetime was converted to local for consistency.
+2. Compared start date and current date excluding time to make sure isToday is valid.
+
+I fixed this issue within an hour. It took few minutes to find all the incomming datetime and change them to local as well. didnt need to use AI for this one, just used copilot to check if there were more date issues.
