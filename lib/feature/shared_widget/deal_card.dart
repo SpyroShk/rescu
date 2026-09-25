@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:rescu/feature/shared_widget/sale_countdown.dart';
 
 import '../../app_config.dart';
 import '../../model/deal_model.dart';
@@ -30,13 +31,15 @@ class DealCard extends StatelessWidget {
           children: [
             Stack(
               children: [
-                TheNetworkImage(url: deal.imageUrl, height: 160, width: double.infinity),
+                TheNetworkImage(
+                    url: deal.imageUrl, height: 160, width: double.infinity),
                 if (deal.isFlashSale)
                   Positioned(
                     top: 8,
                     left: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.red.shade600,
                         borderRadius: BorderRadius.circular(6),
@@ -54,7 +57,8 @@ class DealCard extends StatelessWidget {
                   top: 8,
                   right: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.65),
                       borderRadius: BorderRadius.circular(6),
@@ -72,11 +76,22 @@ class DealCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(deal.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w600)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        deal.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (deal.flashSaleEndsAt != null)
+                        SellCountdown(endsAt: deal.flashSaleEndsAt),
+                    ],
+                  ),
                   const SizedBox(height: 2),
                   Text(deal.storeName,
                       maxLines: 1,

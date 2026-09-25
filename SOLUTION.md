@@ -143,7 +143,6 @@ integrate with.
 
 I fixed this issue within an hour. It took few minutes to find all the incomming datetime and change them to local as well. didnt need to use AI for this one, just used copilot to check if there were more date issues.
 
-
 ### RES-107 · Deep link opens to a crash
 
 Marketing sends push notifications that deep-link to deals, e.g.
@@ -169,10 +168,37 @@ Home navigation passed a DealModel through arguments, but deep links only provid
 **Fix:**
 
 1. Read the deal ID from Get.parameters.
-2. Fetch the deal with DealRepo.fetchById in _loadDeal() in DealDetailsController.
+2. Fetch the deal with DealRepo.fetchById in \_loadDeal() in DealDetailsController.
 3. Show a loading state while fetching in the DealDetailsScreen.
 4. Show an error state if the deal ID is invalid or unavailable.
 
-I fixed this issue an about an hour. It took some time to check the passed parameters and the missing ones. 
+I fixed this issue an about an hour. It took some time to check the passed parameters and the missing ones.
 
 Used Copilot to clean the code and to check if there were more issues regarding deeplinking.
+
+## Part B — Features
+
+### F-1 · Live flash-sale countdowns
+
+Flash deals (`flashSaleEndsAt` on the model) currently show a static
+"Ends soon" badge. Replace it with a **live countdown** (`mm:ss`, or
+`hh:mm:ss` above an hour) everywhere the deal appears: flash rail, home feed
+cards, and the details screen.
+
+Requirements:
+
+- When a countdown reaches zero: the card switches to a disabled "Expired"
+  state, the deal can no longer be added to the bag, and if it is already in
+  the bag it is removed with a visible notice.
+- The home feed must stay smooth with 100+ visible countdowns. We will
+  profile your implementation with DevTools; per-second rebuilds must be
+  scoped to the text that actually changes — not whole cards, not the whole
+  list.
+
+**Whats Done:**
+
+1. The countdown badge/container is built for all the deal cards, flash cards and detail page.
+2. Each second only the changing countdown Text is rebuilt for performance. And timers are still canceled when their text widgets are disposed.
+3. Popup snackbar shown on deal expire stating the removal of the item from the bag. And deals already in the bag are automatically removed when their sale expires.
+4. Expired deals cannot be added to the bag.
+5. Expiry timers are canceled when items are removed, cleared, or the service closes.
