@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:rescu/feature/shared_widget/sale_countdown.dart';
 
 import '../../app_config.dart';
 import '../shared_widget/the_network_image.dart';
@@ -39,9 +40,19 @@ class DealDetailsScreen extends GetView<DealDetailsController> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(deal.name,
-                        style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.bold)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          deal.name,
+                          style: const TextStyle(
+                              fontSize: 22, fontWeight: FontWeight.bold),
+                          maxLines: null,
+                        ),
+                        if (deal.flashSaleEndsAt != null)
+                          SellCountdown(endsAt: deal.flashSaleEndsAt),
+                      ],
+                    ),
                     const SizedBox(height: 4),
                     Text(deal.storeName,
                         style: TextStyle(
@@ -143,7 +154,19 @@ class DealDetailsScreen extends GetView<DealDetailsController> {
           child: SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: controller.addToCart,
+              onPressed: () {
+                final saleEnded = deal.flashSaleEndsAt != null &&
+                    !deal.flashSaleEndsAt!.isAfter(DateTime.now());
+                if (saleEnded) {
+                  Get.snackbar(
+                    'Sale ended',
+                    'This deal is no longer available',
+                    snackPosition: SnackPosition.BOTTOM,
+                  );
+                } else {
+                  controller.addToCart();
+                }
+              },
               icon: const Icon(Icons.add_shopping_cart),
               label: const Text('Add to bag'),
             ),

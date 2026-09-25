@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:rescu/feature/shared_widget/sale_countdown.dart';
 
 import '../../../app_config.dart';
 import '../../../model/deal_model.dart';
@@ -83,19 +84,21 @@ class FlashDealsSection extends StatelessWidget {
                                           fontWeight: FontWeight.bold,
                                           color: AppConfig.primaryGreen)),
                                   const Spacer(),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.shade50,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text('Ends soon',
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.red.shade700)),
-                                  ),
+                                  if (deal.flashSaleEndsAt != null)
+                                    SellCountdown(endsAt: deal.flashSaleEndsAt),
+                                  // Container(
+                                  //   padding: const EdgeInsets.symmetric(
+                                  //       horizontal: 6, vertical: 2),
+                                  //   decoration: BoxDecoration(
+                                  //     color: Colors.red.shade50,
+                                  //     borderRadius: BorderRadius.circular(4),
+                                  //   ),
+                                  //   child: Text('Ends soon',
+                                  //       style: TextStyle(
+                                  //           fontSize: 11,
+                                  //           fontWeight: FontWeight.w600,
+                                  //           color: Colors.red.shade700)),
+                                  // ),
                                 ],
                               ),
                             ],
