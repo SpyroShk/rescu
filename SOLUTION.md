@@ -1,5 +1,7 @@
 # Rescu — Flutter Developer Assessment
 
+## Part A — Bug tickets
+
 Here are the solutions for each of the problems in the Rescu.
 
 ### RES-101 · Search shows results for the wrong query
@@ -311,7 +313,7 @@ I scope reactivity around the smallest widget that needs the observable:
 - Put countdown state only around the changing countdown text.
 - Keep static cards and expensive child widgets outside unrelated Obx builders.
 
-The tradeoff is readability versus rebuild cost. I start with the narrowest meaningful boundary, then use DevTools’ rebuild tracking and frame timings
+The tradeoff is readability versus rebuild cost. I start with the narrowest meaningful boundary, then use DevTools’ rebuild trackings.
 
 Q3: How would you write an automated test that would have caught
 RES-106 before release? What (if anything) would you change in the code
