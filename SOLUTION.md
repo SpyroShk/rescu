@@ -176,6 +176,8 @@ I fixed this issue an about an hour. It took some time to check the passed param
 
 Used Copilot to clean the code and to check if there were more issues regarding deeplinking.
 
+---
+
 ## Part B — Features
 
 ### F-1 · Live flash-sale countdowns
@@ -203,7 +205,6 @@ Requirements:
 4. Expired deals cannot be added to the bag.
 5. Expiry timers are canceled when items are removed, cleared, or the service closes.
 
-
 ### F-2 · Impression tracking
 
 Product wants view analytics on deal cards. Using `AnalyticsService`:
@@ -226,14 +227,109 @@ debug).
 **Whats Done:**
 
 Implemented deal impression analytics where:
+
 1. Tracks a deal after it remains at least 50% visible for 1 continuous second.
 2. Supports home_feed, flash_rail, and search sources.
 3. Includes deal_id, source, and list position.
 4. Deduplicates once per deal for the entire app session.
 5. Batches events and sends them through sendAnalyticsBatch:
+
 - At 10 events, or
 - 15 seconds after the first pending event.
+
 6. Used `FakeApiService.sendAnalyticsBatch` to send the analytics data via analytic_service.dart.
 7. Changed some widgets to follow DRY concept for better performance
 
 Used AI for this one to figure out the logic to save the data. Took me around 4 hrs.
+
+### F-3 · Stock reservations with optimistic UI
+
+Right now the bag is purely local, so two users can "add" the last bag and
+one of them finds out only at pickup. The backend already exposes
+reservations (see `FakeApiService.reserveDeal` / `releaseReservation`, and
+`reservationId` on checkout): a reservation holds stock for **5 minutes** and
+intermittently fails with a 409 when stock is contended.
+
+Build reservation support into the bag:
+
+- Adding to the bag reserves stock. The UI must respond **optimistically**
+  (instant feedback), then reconcile: if the reservation fails, the item is
+  rolled back out of the bag with a clear, non-technical message.
+- Each bag line shows how long its reservation has left.
+- Removing a line (or reducing quantity) releases/adjusts the hold.
+- Checkout passes reservation ids; handle the `410 reservation expired`
+  rejection gracefully.
+- **Deliberately underspecified:** what should happen when a reservation
+  expires while the user is still in the app (or mid-checkout)? Decide the
+  product behaviour yourself, implement it, and justify the decision in
+  `solutions.md`. There is no single right answer — there are wrong ones.
+
+**Whats Done:**
+
+1. Cart lines are added immediately with a `Securing item...` state while a reservation request runs. A failed initial reservation removes the line and explains that the item is no longer available.
+2. Quantity increases and decreases reserve the new quantity before releasing the previous hold. If the new hold fails, the previous quantity and hold are restored.
+3. Each confirmed line displays the remaining 5 minute reservation time. Removing, reducing to zero, clearing, and successful checkout release the related reservation.
+4. Checkout is blocked while a reservation is pending. A server `410` removes expired lines and asks the user to add them again, rather than showing a technical API error.
+5. If a reservation expires while the user remains in the app, the line is removed immediately and a visible notice explains why. This avoids showing stock the user no longer owns and prevents a predictable checkout failure. The same rule handles a hold expiring during checkout: the server response is reconciled by removing the expired line and leaving any other valid lines available for a fresh attempt.
+
+While working on it, I found, the quantity is being refreshed from the backend, but this fake reservation API does not reduce the catalog’s quantityLeft when a hold is created. The details controller therefore keeps showing the original stock. I thought to sync the quantity with the card quantity as recommended by AI but didnt do it as it doesnt match a real production app, rather just a temporary fix.
+
+I Used AI for this one as well to figure out the quantity issue. Took me around 4 hrs to understand the code and integrate the feature.
+
+---
+
+## Part C — Written deliverables
+
+Q1: In this codebase, what is the difference between a `GetxController`'s
+lifecycle and a widget `State`'s lifecycle? Name one bug from Part A
+that exists because of confusion between the two.
+
+**ANS:** A GetxController follows GetX dependency/route lifecycle:
+
+- onInit() runs when GetX creates the controller.
+- onClose() runs when GetX disposes it.
+- Its lifetime can outlast a particular widget rebuild and depends on route/dependency management.
+
+A widget State follows the Flutter widget-tree lifecycle:
+
+- initState() runs when the state is mounted.
+- dispose() runs when the widget leaves the tree.
+- setState() is only valid while that state is mounted.
+
+One Part A bug was RES-102: PickupCountdown created a Timer.periodic in initState() but did not cancel it in dispose(). After leaving the orders screen, the timer continued calling setState() on the disposed widget, causing setState() called after dispose().
+
+A related controller-lifecycle bug was RES-103, where a GetX ever() worker was not disposed in DealDetailsController.onClose().
+
+Q2: When does wrapping a large subtree in a single `Obx` hurt you? How do you decide how tightly to scope reactivity?
+
+**ANS:** Wrapping a large subtree in one Obx hurts when any observed value changes, because the entire subtree rebuilds, even if only a small child depends on that value. This increases build work, can cause dropped frames during high-frequency updates such as scrolling or countdown timers, and may recreate expensive lists, images, or layout trees unnecessarily.
+
+I scope reactivity around the smallest widget that needs the observable:
+
+- Put feed data and filter state around the list body.
+- Put scroll state only around the app bar shadow or scroll-to-top button.
+- Put countdown state only around the changing countdown text.
+- Keep static cards and expensive child widgets outside unrelated Obx builders.
+
+The tradeoff is readability versus rebuild cost. I start with the narrowest meaningful boundary, then use DevTools’ rebuild tracking and frame timings
+
+Q3: How would you write an automated test that would have caught
+RES-106 before release? What (if anything) would you change in the code
+to make such a test possible?
+
+**ANS:** I would test the timezone conversion and date filtering at the model/controller boundary.
+
+For example, freeze the clock at a known instant, parse an API payload containing UTC timestamps, and assert that:
+
+- PickupWindowModel.label formats the correct local time.
+- isToday is true when the pickup instant falls on the device’s local calendar date.
+- A timestamp with the same day number but a different month or year returns false.
+- isOpenNow compares local instants correctly.
+
+Then I would test HomeController.visibleDeals with todayOnly = true, using deals whose UTC pickup windows cross a local midnight boundary, and assert that only the correct local-date deals remain.
+
+To make this predictable, I would inject a now function into PickupWindowModel and the controller instead of calling DateTime.now() directly. I would also centralize parsing in a helper such as parseApiDateTime(value).toLocal(). Tests could then provide a fixed clock and avoid depending on the machine’s timezone or current date.
+
+---
+
+I spent around 3 days in this entire project and if I could spend a day more, I would go through the F-3 feature again and if I could modify the backend, would fix the quantityLeft after reserving the deal which would give me an opportutity to fix the entire feature. Also would be far easier to use postman to view the datas rather than in code.
