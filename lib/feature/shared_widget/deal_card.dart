@@ -1,157 +1,77 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:rescu/feature/shared_widget/sale_countdown.dart';
+import 'package:rescu/feature/home/widget/flash_deal_item.dart';
+import 'package:rescu/feature/shared_widget/deal_item.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
-import '../../app_config.dart';
 import '../../model/deal_model.dart';
-import '../../routes/routes.dart';
-import 'the_network_image.dart';
+import '../../service/analytics_service.dart';
 
 /// Deal card used in the home feed and search results.
-class DealCard extends StatelessWidget {
+class DealCard extends StatefulWidget {
   final DealModel deal;
   final String source;
+  final int position;
+  final bool isFlashDeal;
 
-  const DealCard({super.key, required this.deal, this.source = 'home'});
+  const DealCard({
+    super.key,
+    required this.deal,
+    required this.source,
+    required this.position,
+    this.isFlashDeal = false,
+  });
+
+  @override
+  State<DealCard> createState() => _DealCardState();
+}
+
+class _DealCardState extends State<DealCard> {
+  Timer? _visibilityTimer;
+  bool _impressionSent = false;
+
+  void _onVisibilityChanged(VisibilityInfo info) {
+    if (_impressionSent) return;
+    if (info.visibleFraction >= 0.5) {
+      _visibilityTimer ??= Timer(const Duration(seconds: 1), () {
+        _visibilityTimer = null;
+        if (!mounted || _impressionSent) return;
+        _impressionSent = true;
+        Get.find<AnalyticsService>().logDealImpression(
+          dealId: widget.deal.id,
+          source: widget.source,
+          position: widget.position,
+        );
+      });
+    } else {
+      _visibilityTimer?.cancel();
+      _visibilityTimer = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _visibilityTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      clipBehavior: Clip.antiAlias,
-      color: Colors.white,
-      elevation: 0.5,
-      child: InkWell(
-        onTap: () => Get.toNamed(
-          Routes.dealRoute(deal.id, source: source),
-          arguments: deal,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                TheNetworkImage(
-                    url: deal.imageUrl, height: 160, width: double.infinity),
-                if (deal.isFlashSale)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade600,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'FLASH SALE',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '${deal.quantityLeft} left',
-                      style: const TextStyle(color: Colors.white, fontSize: 11),
-                    ),
-                  ),
-                ),
-              ],
+    return VisibilityDetector(
+      key: ValueKey(
+          'deal-impression-${widget.source}-${widget.deal.id}-${widget.position}'),
+      onVisibilityChanged: _onVisibilityChanged,
+      child: (widget.isFlashDeal)
+          ? FlashDealItem(
+              deal: widget.deal,
+              source: widget.source,
+            )
+          : DealItem(
+              deal: widget.deal,
+              source: widget.source,
             ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        deal.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (deal.flashSaleEndsAt != null)
-                        SellCountdown(endsAt: deal.flashSaleEndsAt),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(deal.storeName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 12.5, color: Colors.grey.shade600)),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.schedule,
-                          size: 14, color: Colors.grey.shade600),
-                      const SizedBox(width: 4),
-                      Text('Pick up ${deal.pickupWindow.label}',
-                          style: TextStyle(
-                              fontSize: 12.5, color: Colors.grey.shade700)),
-                      const Spacer(),
-                      if (deal.rating != null) ...[
-                        const Icon(Icons.star_rounded,
-                            size: 15, color: Colors.amber),
-                        Text(deal.rating!.toStringAsFixed(1),
-                            style: const TextStyle(fontSize: 12.5)),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Text('฿${deal.price.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppConfig.primaryGreen)),
-                      const SizedBox(width: 6),
-                      Text('฿${deal.originalPrice.toStringAsFixed(0)}',
-                          style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade500,
-                              decoration: TextDecoration.lineThrough)),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppConfig.primaryGreen.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text('-${deal.discountPercent}%',
-                            style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppConfig.primaryGreen)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

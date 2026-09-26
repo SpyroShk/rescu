@@ -113,8 +113,14 @@ class HomeScreen extends GetView<HomeController> {
               }
               final dealIndex = index - firstDealIndex;
               if (dealIndex < visibleDeals.length) {
-                return RepaintBoundary( //isolates each card's repaints so scrolling one doesn't force repaints of siblings
-                    child: DealCard(deal: visibleDeals[dealIndex]));
+                return RepaintBoundary(
+                  child: DealCard(
+                    key: ValueKey(visibleDeals[dealIndex].id),
+                    deal: visibleDeals[dealIndex],
+                    source: 'home_feed',
+                    position: dealIndex,
+                  ),
+                );
               }
               return const SizedBox(height: 24);
             },
