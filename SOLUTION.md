@@ -202,3 +202,38 @@ Requirements:
 3. Popup snackbar shown on deal expire stating the removal of the item from the bag. And deals already in the bag are automatically removed when their sale expires.
 4. Expired deals cannot be added to the bag.
 5. Expiry timers are canceled when items are removed, cleared, or the service closes.
+
+
+### F-2 · Impression tracking
+
+Product wants view analytics on deal cards. Using `AnalyticsService`:
+
+- Log a `deal_impression` event when a deal card has been **≥50% visible for
+  at least 1 continuous second**. Properties: `deal_id`, `source`
+  (`home_feed`, `flash_rail`, or `search`), `position` (index in its list).
+- At most **once per deal per app session**, across all screens.
+- Do not send events one by one: batch them and deliver via
+  `FakeApiService.sendAnalyticsBatch` when either 10 events have accumulated
+  or 15 seconds have passed since the first unsent event — whichever comes
+  first.
+- Scrolling performance must not regress.
+- The `visibility_detector` package is already in `pubspec.yaml`; using it is
+  allowed but not required.
+
+Verify your events on the **Analytics debug** screen (Home → ⋮ → Analytics
+debug).
+
+**Whats Done:**
+
+Implemented deal impression analytics where:
+1. Tracks a deal after it remains at least 50% visible for 1 continuous second.
+2. Supports home_feed, flash_rail, and search sources.
+3. Includes deal_id, source, and list position.
+4. Deduplicates once per deal for the entire app session.
+5. Batches events and sends them through sendAnalyticsBatch:
+- At 10 events, or
+- 15 seconds after the first pending event.
+6. Used `FakeApiService.sendAnalyticsBatch` to send the analytics data via analytic_service.dart.
+7. Changed some widgets to follow DRY concept for better performance
+
+Used AI for this one to figure out the logic to save the data. Took me around 4 hrs.
